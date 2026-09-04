@@ -3,10 +3,9 @@
 PROGRAM := kwbind
 SOURCE  := kwbind.lua
 
-LUAJIT ?= luajit
-
-GLUE  := /usr/local/bin/glue
-SRLUA := /usr/local/bin/srluajit
+LUAJIT := $(shell command -v luajit 2>/dev/null)
+GLUE   := $(shell command -v glue 2>/dev/null)
+SRLUA  := $(shell command -v srluajit 2>/dev/null)
 
 PREFIX ?= /usr/local
 BINDIR := $(PREFIX)/bin
@@ -16,6 +15,9 @@ BINDIR := $(PREFIX)/bin
 all: build
 
 check:
+>test -n "$(LUAJIT)" || { echo "error: luajit not found in PATH"; exit 1; }
+>test -n "$(GLUE)" || { echo "error: glue not found in PATH"; exit 1; }
+>test -n "$(SRLUA)" || { echo "error: srluajit not found in PATH"; exit 1; }
 >$(LUAJIT) -e 'assert(loadfile("$(SOURCE)"))'
 
 build: check
