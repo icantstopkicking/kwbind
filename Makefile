@@ -1,4 +1,8 @@
 .RECIPEPREFIX := >
+.ONESHELL:
+
+SHELL := /bin/sh
+.SHELLFLAGS := -eu -c
 
 PROGRAM := kwbind
 SOURCE := kwbind.lua
@@ -11,35 +15,65 @@ BINDIR := $(PREFIX)/bin
 all: build
 
 paths:
->@printf 'PATH       = %s\n' "$$PATH"
->@printf 'luajit     = %s\n' "$$(command -v luajit 2>/dev/null || true)"
->@printf 'glue       = %s\n' "$$(command -v glue 2>/dev/null || true)"
->@printf 'srluajit   = %s\n' "$$(command -v srluajit 2>/dev/null || true)"
+>printf 'PATH=%s\n' "$$PATH"
+>for cmd in luajit glue srluajit; do
+>    p="$$(command -v "$$cmd" 2>/dev/null || true)"
+>    if [ -n "$$p" ]; then
+>        p="$$(readlink -f "$$p")"
+>    fi
+>    printf '%-10s %s\n' "$$cmd" "$$p"
+>done
 
 check:
->@command -v luajit >/dev/null 2>&1 || { \
->	echo "error: luajit not found in PATH"; \
->	exit 1; \
+>LUAJIT="$$(command -v luajit 2>/dev/null || true)"
+>[ -n "$$LUAJIT" ] || {
+>    echo "error: luajit not found in PATH" >&2
+>    exit 1
 >}
->@luajit -e 'assert(loadfile("$(SOURCE)"))'
+>LUAJIT="$$(readlink -f "$$LUAJIT")"
+>[ -x "$$LUAJIT" ] || {
+>    echo "error: luajit is not executable: $$LUAJIT" >&2
+>    exit 1
+>}
+>"$$LUAJIT" -e 'assert(loadfile("$(SOURCE)"))'
 
 build: check
->@set -e; \
->GLUE_PATH="$$(command -v glue 2>/dev/null)"; \
->SRLUA_PATH="$$(command -v srluajit 2>/dev/null)"; \
->if [ -z "$$GLUE_PATH" ]; then \
->	echo "error: glue not found in PATH"; \
->	exit 1; \
->fi; \
->if [ -z "$$SRLUA_PATH" ]; then \
->	echo "error: srluajit not found in PATH"; \
->	exit 1; \
->fi; \
->echo "Using glue:     $$GLUE_PATH"; \
->echo "Using srluajit: $$SRLUA_PATH"; \
->ls -l "$$GLUE_PATH" "$$SRLUA_PATH"; \
->"$$GLUE_PATH" "$$SRLUA_PATH" "$(SOURCE)" "$(PROGRAM)"
->@chmod +x "$(PROGRAM)"
+>GLUE="$$(command -v glue 2>/dev/null || true)"
+>SRLUAJIT="$$(command -v srluajit 2>/dev/null || true)"
+>
+>[ -n "$$GLUE" ] || {
+>    echo "error: glue not found in PATH" >&2
+>    exit 1
+>}
+>
+>[ -n "$$SRLUAJIT" ] || {
+>    echo "error: srluajit not found in PATH" >&2
+>    exit 1
+>}
+>
+>GLUE="$$(readlink -f "$$GLUE")"
+>SRLUAJIT="$$(readlink -f "$$SRLUAJIT")"
+>
+>[ -x "$$GLUE" ] || {
+>    echo "error: glue is not executable: $$GLUE" >&2
+>    exit 1
+>}
+>
+>[ -r "$$SRLUAJIT" ] || {
+>    echo "error: srluajit is not readable: $$SRLUAJIT" >&2
+>    exit 1
+>}
+>
+>[ -r "$(SOURCE)" ] || {
+>    echo "error: source is not readable: $(SOURCE)" >&2
+>    exit 1
+>}
+>
+>printf 'Using glue: %s\n' "$$GLUE"
+>printf 'Using srluajit: %s\n' "$$SRLUAJIT"
+>
+>"$$GLUE" "$$SRLUAJIT" "$(SOURCE)" "$(PROGRAM)"
+>chmod +x "$(PROGRAM)"
 
 install: build
 >install -Dm755 "$(PROGRAM)" "$(DESTDIR)$(BINDIR)/$(PROGRAM)"
